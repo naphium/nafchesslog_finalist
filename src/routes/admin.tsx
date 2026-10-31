@@ -102,7 +102,10 @@ function AccountForm({
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (isSignup && pw !== pw2) return toast.error("Passwords do not match");
+    if (isSignup && pw !== pw2) {
+      toast.error("Passwords do not match");
+      return;
+    }
     setBusy(true);
     if (isSignup) {
       const r = await bootstrap({ data: { email, password: pw } }).catch((err: Error) => ({
@@ -111,26 +114,30 @@ function AccountForm({
       }));
       if (!r.ok) {
         setBusy(false);
-        return toast.error(r.error);
+        toast.error(r.error);
+        return;
       }
     }
     const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
     if (error) {
       setBusy(false);
-      return toast.error(error.message);
+      toast.error(error.message);
+      return;
     }
     if (isSignup) {
       const r = await verifyAdminSession().catch(() => null);
       if (!r?.ok) {
         setBusy(false);
-        return toast.error("Account created but admin role missing");
+        toast.error("Account created but admin role missing");
+        return;
       }
     } else {
       const r = await verifyAdminSession().catch(() => null);
       if (!r?.ok) {
         setBusy(false);
         await supabase.auth.signOut();
-        return toast.error("This account is not the admin");
+        toast.error("This account is not the admin");
+        return;
       }
     }
     setBusy(false);
