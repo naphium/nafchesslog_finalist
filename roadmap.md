@@ -8,3 +8,6 @@
 - [ ] Activate live owner presence: owner must save their Discord ID in admin settings and join discord.gg/lanyard.
 - [x] Replace password-token admin auth with email/password accounts: first account created at /admin becomes admin and owner.
 - [x] Verify admin sign-up/sign-in flow end to end.
+- [ ] Show owner information and Lanyard activity in the shared footer.
+- [ ] Polish review presentation and enlarge estimated Elo.
+- [ ] Verify footer activity states and review on desktop and phones.
