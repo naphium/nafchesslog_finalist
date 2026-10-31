@@ -297,7 +297,7 @@ function SettingsForm({ onSignOut, onExpired }: { onSignOut: () => void; onExpir
           }
         }}
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" />} : <Save className="h-4 w-4" />} Save settings
+        busy ? <Loader2 className="h-4 w-4 animate-spin" />} : <Save className="h-4 w-4" />} Save settings
       </Button>
     </div>
   );
