@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { adminStatus, bootstrapAdmin, updateSettings, verifyAdminSession, type SiteSettings } from "@/lib/settings.functions";
+import { adminStatus, bootstrapAdmin, updateSettings, type SiteSettings } from "@/lib/settings.functions";
 import { settingsQuery, useSettings } from "@/lib/use-settings";
 import { DEFAULT_SETTINGS } from "@/lib/use-settings";
 import { supabase } from "@/integrations/supabase/client";
@@ -32,25 +32,40 @@ export const Route = createFileRoute("/admin")({
 
 type Phase = "loading" | "signup" | "signin" | "admin";
 
+async function verifyUserIsAdmin(userId: string): Promise<{ isAdmin: boolean; error?: string }> {
+  const { data, error } = await supabase.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (error) {
+    return { isAdmin: false, error: error.message };
+  }
+  return { isAdmin: Boolean(data) };
+}
+
 function Admin() {
   const status = useServerFn(adminStatus);
-  const verify = useServerFn(verifyAdminSession);
   const [phase, setPhase] = useState<Phase>("loading");
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { adminExists } = await status();
-        const { data } = await supabase.auth.getSession();
+        const { data: sessionData } = await supabase.auth.getSession();
         if (cancelled) return;
-        if (data.session) {
-          const r = await verify().catch(() => null);
+
+        if (sessionData.session?.user) {
+          const check = await verifyUserIsAdmin(sessionData.session.user.id);
           if (cancelled) return;
-          if (r?.ok) return setPhase("admin");
+          if (check.isAdmin) {
+            setPhase("admin");
+            return;
+          }
           await supabase.auth.signOut();
         }
-        setPhase(adminExists ? "signin" : "signup");
+
+        const { adminExists } = await status().catch(() => ({ adminExists: true }));
+        if (!cancelled) setPhase(adminExists ? "signin" : "signup");
       } catch {
         if (!cancelled) setPhase("signin");
       }
@@ -58,7 +73,7 @@ function Admin() {
     return () => {
       cancelled = true;
     };
-  }, [status, verify]);
+  }, [status]);
 
   if (phase === "loading")
     return (
@@ -107,6 +122,7 @@ function AccountForm({
       return;
     }
     setBusy(true);
+
     if (isSignup) {
       const r = await bootstrap({ data: { email, password: pw } }).catch((err: Error) => ({
         ok: false as const,
@@ -118,28 +134,35 @@ function AccountForm({
         return;
       }
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+
+    const { data: authData, error } = await supabase.auth.signInWithPassword({ email, password: pw });
     if (error) {
       setBusy(false);
       toast.error(error.message);
       return;
     }
-    if (isSignup) {
-      const r = await verifyAdminSession().catch(() => null);
-      if (!r?.ok) {
-        setBusy(false);
-        toast.error("Account created but admin role missing");
-        return;
-      }
-    } else {
-      const r = await verifyAdminSession().catch(() => null);
-      if (!r?.ok) {
-        setBusy(false);
-        await supabase.auth.signOut();
-        toast.error("This account is not the admin");
-        return;
-      }
+
+    const userId = authData.user?.id;
+    if (!userId) {
+      setBusy(false);
+      toast.error("User session missing after login");
+      return;
     }
+
+    const check = await verifyUserIsAdmin(userId);
+    if (check.error) {
+      setBusy(false);
+      toast.error(`Role check error: ${check.error}`);
+      return;
+    }
+
+    if (!check.isAdmin) {
+      setBusy(false);
+      await supabase.auth.signOut();
+      toast.error("This account is not the admin");
+      return;
+    }
+
     setBusy(false);
     onDone();
   }
@@ -274,7 +297,7 @@ function SettingsForm({ onSignOut, onExpired }: { onSignOut: () => void; onExpir
           }
         }}
       >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save settings
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" />} : <Save className="h-4 w-4" />} Save settings
       </Button>
     </div>
   );
