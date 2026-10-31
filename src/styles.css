@@ -1,0 +1,184 @@
+@import "tailwindcss" source(none);
+@import "tw-animate-css";
+@source "../src";
+@source inline("{bg,text,border}-q-{brilliant,great,best,excellent,good,book,inaccuracy,mistake,blunder}{,/15,/20}");
+
+@custom-variant dark (&:is(.dark *));
+
+/*
+ * Design system definition.
+ *
+ * The @theme inline block maps CSS custom properties to Tailwind utility
+ * classes (e.g. --color-primary -> bg-primary, text-primary).
+ *
+ * The :root and .dark blocks define the actual color values using oklch.
+ * All colors MUST use oklch format.
+ *
+ * To add a new semantic color:
+ * 1. Add the variable to :root (light value) and .dark (dark value)
+ * 2. Register it in @theme inline as --color-<name>: var(--<name>)
+ */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-ring-offset-background: var(--background);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@theme inline {
+  --font-display: "Sora", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  --color-board-light: var(--board-light);
+  --color-board-dark: var(--board-dark);
+  --color-eval-white: var(--eval-white);
+  --color-eval-black: var(--eval-black);
+  --color-q-brilliant: var(--q-brilliant);
+  --color-q-great: var(--q-great);
+  --color-q-best: var(--q-best);
+  --color-q-excellent: var(--q-excellent);
+  --color-q-good: var(--q-good);
+  --color-q-book: var(--q-book);
+  --color-q-inaccuracy: var(--q-inaccuracy);
+  --color-q-mistake: var(--q-mistake);
+  --color-q-blunder: var(--q-blunder);
+}
+
+:root {
+  --radius: 0.5rem;
+  --background: oklch(0.21 0.006 285.9);      /* #18181b */
+  --foreground: oklch(0.96 0.003 286);
+  --surface: oklch(0.274 0.006 286);          /* #27272a */
+  --surface-2: oklch(0.33 0.008 286);
+  --card: oklch(0.245 0.006 286);
+  --card-foreground: oklch(0.96 0.003 286);
+  --popover: oklch(0.245 0.006 286);
+  --popover-foreground: oklch(0.96 0.003 286);
+  --primary: oklch(0.723 0.192 149.6);        /* #22c55e */
+  --primary-foreground: oklch(0.18 0.03 150);
+  --secondary: oklch(0.274 0.006 286);
+  --secondary-foreground: oklch(0.96 0.003 286);
+  --muted: oklch(0.274 0.006 286);
+  --muted-foreground: oklch(0.7 0.012 286);
+  --accent: oklch(0.33 0.008 286);
+  --accent-foreground: oklch(0.96 0.003 286);
+  --destructive: oklch(0.637 0.208 25.3);     /* #ef4444 */
+  --destructive-foreground: oklch(0.98 0 0);
+  --success: oklch(0.723 0.192 149.6);
+  --warning: oklch(0.769 0.165 70.1);         /* #f59e0b */
+  --info: oklch(0.715 0.126 215.2);           /* #06b6d4 */
+  --border: oklch(0.34 0.008 286);
+  --input: oklch(0.34 0.008 286);
+  --ring: oklch(0.723 0.192 149.6);
+  --board-light: oklch(0.88 0.04 110);
+  --board-dark: oklch(0.56 0.09 140);
+  --eval-white: oklch(0.96 0.003 286);
+  --eval-black: oklch(0.32 0.006 286);
+  --q-brilliant: oklch(0.715 0.126 215.2);
+  --q-great: oklch(0.62 0.14 250);
+  --q-best: oklch(0.723 0.192 149.6);
+  --q-excellent: oklch(0.78 0.16 145);
+  --q-good: oklch(0.7 0.09 150);
+  --q-book: oklch(0.62 0.07 60);
+  --q-inaccuracy: oklch(0.84 0.16 92);
+  --q-mistake: oklch(0.769 0.165 70.1);
+  --q-blunder: oklch(0.637 0.208 25.3);
+  --chart-1: oklch(0.723 0.192 149.6);
+  --chart-2: oklch(0.715 0.126 215.2);
+  --chart-3: oklch(0.769 0.165 70.1);
+  --chart-4: oklch(0.637 0.208 25.3);
+  --chart-5: oklch(0.62 0.14 250);
+  --sidebar: oklch(0.245 0.006 286);
+  --sidebar-foreground: oklch(0.96 0.003 286);
+  --sidebar-primary: oklch(0.723 0.192 149.6);
+  --sidebar-primary-foreground: oklch(0.18 0.03 150);
+  --sidebar-accent: oklch(0.33 0.008 286);
+  --sidebar-accent-foreground: oklch(0.96 0.003 286);
+  --sidebar-border: oklch(0.34 0.008 286);
+  --sidebar-ring: oklch(0.723 0.192 149.6);
+  --gradient-hero: linear-gradient(160deg, color-mix(in oklab, var(--surface) 35%, var(--background)), var(--background) 45%);
+  --shadow-panel: 0 20px 50px -20px oklch(0 0 0 / 0.6);
+  --shadow-glow: 0 0 0 1px color-mix(in oklab, var(--primary) 40%, transparent), 0 10px 30px -10px color-mix(in oklab, var(--primary) 45%, transparent);
+  --shadow-board: 0 12px 32px -12px oklch(0 0 0 / 0.65);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    background-image: var(--gradient-hero);
+    background-attachment: fixed;
+  }
+  h1, h2, h3 { font-family: var(--font-display); letter-spacing: 0; }
+  body { min-width: 320px; }
+  .site-header { border-bottom: 1px solid var(--border); margin-bottom: 1.25rem; }
+  .board-frame { border-radius: var(--radius); box-shadow: var(--shadow-board); }
+  .coach-section { background: linear-gradient(90deg, transparent, color-mix(in oklab, var(--primary) 5%, transparent)); }
+  #review-board { touch-action: none; }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@utility panel {
+  background-color: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-panel);
+}
+
+@utility glow {
+  box-shadow: var(--shadow-glow);
+}
+
+@utility tabular {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
