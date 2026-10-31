@@ -314,3 +314,18 @@ function Row({ title, desc, children }: { title: string; desc: string; children:
     </div>
   );
 }
+onClick={async () => {
+  setBusy(true);
+  const { error } = await supabase
+    .from("site_settings")
+    .update({ ...s, updated_at: new Date().toISOString() })
+    .eq("id", 1);
+  setBusy(false);
+  if (!error) {
+    toast.success("Settings saved");
+    await qc.invalidateQueries({ queryKey: settingsQuery.queryKey });
+  } else {
+    toast.error(error.message);
+  }
+}}
+
