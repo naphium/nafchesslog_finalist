@@ -12,7 +12,7 @@
 ## NafChessLog architecture
 - Engine analysis runs client-side in `src/lib/chess/engine.ts` (Lichess cloud → chess-api.com → Stockfish worker → neutral 0.00); keeps server cost near zero.
 - Review math/thresholds live only in `src/lib/chess/metrics.ts` and are covered by `metrics.test.ts`; change both together.
-- Site settings are a single row in `site_settings` (public read via RLS); writes only through `updateSettings` server fn after HMAC admin-token check keyed by ADMIN_PASSWORD.
+- Site settings are a single row in `site_settings` (public read via RLS); writes only through the `updateSettings` server fn, which requires a signed-in account holding the `admin` role in `user_roles`. The first account created at /admin claims that role via `bootstrapAdmin`; public sign-up stays disabled at the auth level, so no other account can ever exist.
 - Loader + current game state persist in sessionStorage via zustand (`src/lib/store.ts`) so "New game"/back keeps fetched lists.
 - Coach explanations are deterministic, client-side summaries of analyzed moves; do not claim positional details that are not available from move data.
 - Validate public customization fields through the shared settings schema; owner links and avatar links accept HTTPS only to prevent unsafe public links.
