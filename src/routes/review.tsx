@@ -209,7 +209,7 @@ function ReviewPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] px-3 pb-8 sm:px-6 lg:px-10">
-      <div className="mb-4 flex items-center justify-between border-b border-border pb-3">
+      <div className="mb-5 flex items-center justify-between border-b border-border pb-3">
         <Button asChild variant="ghost" size="sm"><Link to="/"><ArrowLeft /> Go back</Link></Button>
         <span className="text-xs font-semibold text-muted-foreground">Game review <span className="tabular ml-2 text-primary">{ply} / {total}</span></span>
       </div>
@@ -288,10 +288,10 @@ function ReviewPage() {
         <aside className="flex min-w-0 flex-col border-t border-border pt-4 md:border-l md:border-t-0 md:pl-6 md:pt-0 xl:pl-8">
           <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold">
+              <h1 className="break-words text-xl font-bold leading-snug">
                 {h.white} <span className="text-muted-foreground">vs</span> {h.black}
               </h1>
-              <p className="truncate text-xs text-muted-foreground">
+              <p className="mt-1 break-words text-xs leading-relaxed text-muted-foreground">
                 {[h.event, h.date, h.result].filter((x) => x && !x.includes("?")).join(" · ")}
               </p>
             </div>
@@ -318,7 +318,7 @@ function ReviewPage() {
 
           <Coach game={game} review={r} ply={ply} settings={settings} />
           <Tabs value={tab} onValueChange={(value) => { setTab(value); setAuto(false); }} className="flex-1">
-            <TabsList className="grid w-full grid-cols-4 bg-surface">
+            <TabsList className="grid h-11 w-full grid-cols-4 bg-surface">
               <TabsTrigger value="summary">Summary</TabsTrigger>
               <TabsTrigger value="moves">Moves</TabsTrigger>
               <TabsTrigger value="analyze">Analyze</TabsTrigger>

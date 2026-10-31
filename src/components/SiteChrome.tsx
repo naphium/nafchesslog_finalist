@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import { Megaphone, Wrench, MessageCircle, ArrowUpRight, MapPin, UserRound } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Megaphone, Wrench, MessageCircle, ArrowUpRight, MapPin } from "lucide-react";
+import { type ReactNode } from "react";
 import { useSettings } from "@/lib/use-settings";
 import { Button } from "@/components/ui/button";
 import { OwnerPresence } from "@/components/OwnerPresence";
@@ -18,7 +18,6 @@ function Logo() {
 
 export function SiteChrome({ children }: { children: ReactNode }) {
   const s = useSettings();
-  const [failedAvatar, setFailedAvatar] = useState("");
   const path = useRouterState({ select: (r) => r.location.pathname });
   const locked = s.maintenance_mode && !path.startsWith("/admin");
 
@@ -54,24 +53,15 @@ export function SiteChrome({ children }: { children: ReactNode }) {
             <p className="mt-4 text-xs leading-relaxed text-muted-foreground">© NafChessLog<br />Engine analysis by Lichess cloud, chess-api.com & Stockfish</p>
             {s.discord_url && <Button asChild variant="outline" size="sm" className="mt-4"><a href={s.discord_url} target="_blank" rel="noreferrer"><MessageCircle /> Community <ArrowUpRight /></a></Button>}
           </div>
-          {(s.owner_name || s.owner_discord_id) && <section aria-label="Owner information" className="min-w-0 md:justify-self-end md:max-w-md">
+          {(s.owner_name || s.owner_discord_id) && <section aria-label="Owner information" className="w-full min-w-0 md:max-w-md md:justify-self-end">
             <div className="mb-3 text-xs font-semibold text-primary">Behind NafChessLog</div>
-            <div className="grid grid-cols-[48px_minmax(0,1fr)] gap-3">
-              <div className="grid h-12 w-12 place-items-center overflow-hidden rounded-lg border border-border bg-surface text-muted-foreground">
-                {s.owner_avatar_url && failedAvatar !== s.owner_avatar_url ? <img src={s.owner_avatar_url} alt={s.owner_name} className="h-full w-full object-cover" onError={() => setFailedAvatar(s.owner_avatar_url)} /> : <UserRound className="h-6 w-6" />}
-              </div>
-              <div className="min-w-0 break-words">
-                <h2 className="text-base font-semibold">{s.owner_name}</h2>
-                {s.owner_title && <p className="mt-1 text-sm text-muted-foreground">{s.owner_title}</p>}
-                {s.owner_location && <p className="mt-2 flex items-start gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" />{s.owner_location}</p>}
-              </div>
-            </div>
+            <OwnerPresence variant="footer" />
+            {s.owner_location && <p className="mt-3 flex items-start gap-1.5 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5 shrink-0" />{s.owner_location}</p>}
             {s.owner_bio && <p className="mt-3 break-words text-sm leading-relaxed text-muted-foreground">{s.owner_bio}</p>}
             <div className="mt-3 flex flex-wrap gap-2">
               {s.owner_url && <Button asChild variant="ghost" size="sm" className="px-0"><a href={s.owner_url} target="_blank" rel="noreferrer">Website <ArrowUpRight /></a></Button>}
               {s.owner_chess_url && <Button asChild variant="ghost" size="sm"><a href={s.owner_chess_url} target="_blank" rel="noreferrer">Chess profile <ArrowUpRight /></a></Button>}
             </div>
-            {s.owner_discord_id && <div className="mt-4 max-w-sm"><OwnerPresence /></div>}
           </section>}
         </div>
       </footer>

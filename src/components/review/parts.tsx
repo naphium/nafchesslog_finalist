@@ -61,7 +61,7 @@ export function PlayerCard({
   active: boolean;
 }) {
   return (
-    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 py-2">
+    <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 py-3">
       <div className="flex min-w-0 items-center gap-2.5">
         <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-md border border-border text-lg ${color === "w" ? "bg-eval-white text-eval-black" : "bg-eval-black text-eval-white"}`}>
           {color === "w" ? "♔" : "♚"}
@@ -72,11 +72,9 @@ export function PlayerCard({
         </div>
       </div>
       {stats && (
-        <div className="flex items-center gap-2">
-          <span className="tabular rounded-md bg-surface px-2 py-1 text-xs font-bold">{stats.accuracy.toFixed(1)}%</span>
-          <span className="tabular rounded-md bg-primary/15 px-2 py-1 text-xs font-bold text-primary" title="Estimated performance">
-            {stats.perfElo}
-          </span>
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className="text-right"><div className="tabular text-sm font-bold">{stats.accuracy.toFixed(1)}%</div><div className="text-[10px] text-muted-foreground">Accuracy</div></div>
+          <div className="border-l border-border pl-3 text-right" title="Estimated performance"><div className="tabular text-2xl font-bold leading-none text-primary">{stats.perfElo}</div><div className="mt-1 text-[10px] text-muted-foreground">Est. Elo</div></div>
         </div>
       )}
     </div>
@@ -103,7 +101,7 @@ function Gauge({ value, label }: { value: number; label: string }) {
             strokeDashoffset={c * (1 - value / 100)}
           />
         </svg>
-        <span className="tabular absolute inset-0 grid place-items-center text-xl font-bold">{value.toFixed(1)}</span>
+        <span className="tabular absolute inset-0 grid place-items-center text-2xl font-bold">{value.toFixed(1)}</span>
       </div>
       <span className="mt-1 text-xs text-muted-foreground">{label}</span>
     </div>
@@ -120,13 +118,15 @@ export function Summary({ game, review }: { game: LoadedGame; review: GameReview
           const elo = c === "w" ? h.whiteElo : h.blackElo;
           return (
             <div key={c} className="min-w-0 px-2 text-center">
-              <div className="truncate text-sm font-semibold">{c === "w" ? h.white : h.black}</div>
+              <div className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">{c === "w" ? "White" : "Black"}</div>
+              <div className="truncate text-sm font-semibold" title={c === "w" ? h.white : h.black}>{c === "w" ? h.white : h.black}</div>
               <div className="mt-3">
                 <Gauge value={s.accuracy} label="Accuracy" />
               </div>
-              <div className="mt-3 flex flex-wrap justify-center gap-2 text-xs">
-                <span className="tabular rounded bg-primary/15 px-2 py-1 font-bold text-primary">Perf {s.perfElo}</span>
-                <span className="tabular rounded bg-surface-2 px-2 py-1 text-muted-foreground">Real {elo ?? "—"}</span>
+              <div className="mt-4 border-t border-border/60 pt-3">
+                <div className="text-[10px] font-semibold uppercase text-muted-foreground">Estimated Elo</div>
+                <div className="tabular mt-1 text-4xl font-bold leading-tight text-primary">{s.perfElo}</div>
+                <div className="mt-1 text-xs text-muted-foreground">Rating <span className="tabular">{elo ?? "—"}</span></div>
               </div>
             </div>
           );
@@ -154,7 +154,7 @@ export function Summary({ game, review }: { game: LoadedGame; review: GameReview
         </thead>
         <tbody>
           {CLASSIFICATION_ORDER.map((c) => (
-            <tr key={c} className="border-t border-border/60">
+            <tr key={c} className="border-t border-border/60 even:bg-surface/25">
               <td className={`tabular py-2 font-bold text-${CLASSIFICATION_META[c].token}`}>{review.white.counts[c]}</td>
               <td className="py-2">
                 <span className="grid grid-cols-[16px_1fr_16px] items-center gap-1 text-center text-xs sm:text-sm">
