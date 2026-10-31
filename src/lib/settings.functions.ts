@@ -1,59 +1,87 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { settingsSchema } from "./settings-schema";
 export type { SiteSettings } from "./settings-schema";
 
-const enc = new TextEncoder();
-const b64 = (buf: ArrayBuffer) =>
-  btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const credentialsSchema = z.object({
+  email: z.string().trim().email().max(200),
+  password: z.string().min(8).max(200),
+});
 
-async function hmac(key: string, msg: string) {
-  const k = await crypto.subtle.importKey("raw", enc.encode(key), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  return b64(await crypto.subtle.sign("HMAC", k, enc.encode(msg)));
-}
+/** Public: tells /admin whether the owner account has been claimed yet. */
+export const adminStatus = createServerFn({ method: "GET" }).handler(async () => {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { count, error } = await supabaseAdmin
+    .from("user_roles")
+    .select("id", { count: "exact", head: true })
+    .eq("role", "admin");
+  if (error) throw new Error(error.message);
+  return { adminExists: (count ?? 0) > 0 };
+});
 
-function safeEqual(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
-
-async function verifyToken(token: string) {
-  const secret = process.env["ADMIN_PASSWORD"];
-  if (!secret) return false;
-  const [exp, sig] = token.split(".");
-  if (!exp || !sig || Number(exp) < Date.now()) return false;
-  return safeEqual(sig, await hmac(secret, `admin:${exp}`));
-}
-
-export const adminLogin = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ password: z.string().min(1).max(200) }).parse(d))
+/**
+ * Public: creates the one and only admin account. Sign-up is closed at the
+ * auth level; this is the only path that creates a user. If an admin already
+ * exists (or is created concurrently — enforced by a unique partial index),
+ * the request is rejected.
+ */
+export const bootstrapAdmin = createServerFn({ method: "POST" })
+  .inputValidator((d: unknown) => credentialsSchema.parse(d))
   .handler(async ({ data }) => {
-    const secret = process.env["ADMIN_PASSWORD"];
-    if (!secret) return { ok: false as const, error: "Admin password not configured" };
-    const a = await hmac("cmp", data.password);
-    const b = await hmac("cmp", secret);
-    if (!safeEqual(a, b)) return { ok: false as const, error: "Incorrect password" };
-    const exp = String(Date.now() + 1000 * 60 * 60 * 12);
-    return { ok: true as const, token: `${exp}.${await hmac(secret, `admin:${exp}`)}` };
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { count, error: countError } = await supabaseAdmin
+      .from("user_roles")
+      .select("id", { count: "exact", head: true })
+      .eq("role", "admin");
+    if (countError) return { ok: false as const, error: countError.message };
+    if ((count ?? 0) > 0) return { ok: false as const, error: "An admin account already exists" };
+
+    const { data: created, error: createError } = await supabaseAdmin.auth.admin.createUser({
+      email: data.email,
+      password: data.password,
+      email_confirm: true,
+    });
+    if (createError) return { ok: false as const, error: createError.message };
+    const user = created.user;
+    if (!user) return { ok: false as const, error: "Could not create the account" };
+
+    const { error: roleError } = await supabaseAdmin.from("user_roles").insert({ user_id: user.id, role: "admin" });
+    if (roleError) {
+      // Unique partial index fired — an admin was created concurrently. Undo.
+      await supabaseAdmin.auth.admin.deleteUser(user.id);
+      return { ok: false as const, error: "An admin account already exists" };
+    }
+    return { ok: true as const };
   });
 
-export const verifyAdmin = createServerFn({ method: "POST" })
-  .inputValidator((d: unknown) => z.object({ token: z.string().max(200) }).parse(d))
-  .handler(async ({ data }) => ({ ok: await verifyToken(data.token) }));
+/** Authenticated: confirms the signed-in user holds the admin role. */
+export const verifyAdminSession = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }) => {
+    const { data, error } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (error) return { ok: false as const };
+    return { ok: data === true };
+  });
 
 export const updateSettings = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: unknown) =>
     z
       .object({
-        token: z.string().max(200),
         settings: settingsSchema,
       })
       .parse(d),
   )
-  .handler(async ({ data }) => {
-    if (!(await verifyToken(data.token))) return { ok: false as const, error: "Session expired" };
+  .handler(async ({ context, data }) => {
+    const { data: isAdmin, error: roleError } = await context.supabase.rpc("has_role", {
+      _user_id: context.userId,
+      _role: "admin",
+    });
+    if (roleError || !isAdmin) return { ok: false as const, error: "Not authorized" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { error } = await supabaseAdmin
       .from("site_settings")

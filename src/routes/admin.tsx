@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Lock, LogOut, Save, Loader2 } from "lucide-react";
+import { Loader2, LogIn, LogOut, Save, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,9 +10,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { adminLogin, updateSettings, verifyAdmin, type SiteSettings } from "@/lib/settings.functions";
+import { adminStatus, bootstrapAdmin, updateSettings, verifyAdminSession, type SiteSettings } from "@/lib/settings.functions";
 import { settingsQuery, useSettings } from "@/lib/use-settings";
 import { DEFAULT_SETTINGS } from "@/lib/use-settings";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/admin")({
   head: () => ({
@@ -29,68 +30,148 @@ export const Route = createFileRoute("/admin")({
   component: Admin,
 });
 
-const TOKEN_KEY = "nafchesslog-admin";
+type Phase = "loading" | "signup" | "signin" | "admin";
 
 function Admin() {
-  const [token, setToken] = useState<string | null>(null);
-  const [checking, setChecking] = useState(true);
-  const verify = useServerFn(verifyAdmin);
+  const status = useServerFn(adminStatus);
+  const verify = useServerFn(verifyAdminSession);
+  const [phase, setPhase] = useState<Phase>("loading");
 
   useEffect(() => {
-    const t = localStorage.getItem(TOKEN_KEY);
-    if (!t) return setChecking(false);
-    void verify({ data: { token: t } })
-      .then((r) => (r.ok ? setToken(t) : localStorage.removeItem(TOKEN_KEY)))
-      .catch(() => localStorage.removeItem(TOKEN_KEY))
-      .finally(() => setChecking(false));
-  }, [verify]);
+    let cancelled = false;
+    (async () => {
+      try {
+        const { adminExists } = await status();
+        const { data } = await supabase.auth.getSession();
+        if (cancelled) return;
+        if (data.session) {
+          const r = await verify().catch(() => null);
+          if (cancelled) return;
+          if (r?.ok) return setPhase("admin");
+          await supabase.auth.signOut();
+        }
+        setPhase(adminExists ? "signin" : "signup");
+      } catch {
+        if (!cancelled) setPhase("signin");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [status, verify]);
 
-  if (checking)
+  if (phase === "loading")
     return (
       <div className="grid h-[50vh] place-items-center">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
-  return token ? (
+  if (phase === "signup")
+    return <AccountForm mode="signup" onDone={() => setPhase("admin")} onSwitch={() => setPhase("signin")} />;
+  if (phase === "signin")
+    return <AccountForm mode="signin" onDone={() => setPhase("admin")} onSwitch={() => setPhase("signup")} />;
+  return (
     <SettingsForm
-      token={token}
-      onLogout={() => {
-        localStorage.removeItem(TOKEN_KEY);
-        setToken(null);
+      onSignOut={async () => {
+        await supabase.auth.signOut();
+        setPhase("signin");
+      }}
+      onExpired={async () => {
+        await supabase.auth.signOut();
+        setPhase("signin");
       }}
     />
-  ) : (
-    <Login onToken={(t) => (localStorage.setItem(TOKEN_KEY, t), setToken(t))} />
   );
 }
 
-function Login({ onToken }: { onToken: (t: string) => void }) {
-  const login = useServerFn(adminLogin);
+function AccountForm({
+  mode,
+  onDone,
+  onSwitch,
+}: {
+  mode: "signup" | "signin";
+  onDone: () => void;
+  onSwitch: () => void;
+}) {
+  const bootstrap = useServerFn(bootstrapAdmin);
+  const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [pw2, setPw2] = useState("");
   const [busy, setBusy] = useState(false);
-  return (
-    <form
-      className="mx-auto mt-16 max-w-sm panel space-y-4 p-6"
-      onSubmit={async (e) => {
-        e.preventDefault();
-        setBusy(true);
-        const r = await login({ data: { password: pw } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+  const isSignup = mode === "signup";
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (isSignup && pw !== pw2) return toast.error("Passwords do not match");
+    setBusy(true);
+    if (isSignup) {
+      const r = await bootstrap({ data: { email, password: pw } }).catch((err: Error) => ({
+        ok: false as const,
+        error: err.message,
+      }));
+      if (!r.ok) {
         setBusy(false);
-        if (r.ok) onToken(r.token);
-        else toast.error(r.error);
-      }}
-    >
-      <Lock className="h-8 w-8 text-primary" />
-      <h1 className="text-xl font-bold">Admin sign in</h1>
-      <Input type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder="Admin password" autoComplete="current-password" />
-      <Button type="submit" className="w-full" disabled={busy || !pw}>
-        {busy && <Loader2 className="h-4 w-4 animate-spin" />} Unlock
+        return toast.error(r.error);
+      }
+    }
+    const { error } = await supabase.auth.signInWithPassword({ email, password: pw });
+    if (error) {
+      setBusy(false);
+      return toast.error(error.message);
+    }
+    if (isSignup) {
+      const r = await verifyAdminSession().catch(() => null);
+      if (!r?.ok) {
+        setBusy(false);
+        return toast.error("Account created but admin role missing");
+      }
+    } else {
+      const r = await verifyAdminSession().catch(() => null);
+      if (!r?.ok) {
+        setBusy(false);
+        await supabase.auth.signOut();
+        return toast.error("This account is not the admin");
+      }
+    }
+    setBusy(false);
+    onDone();
+  }
+
+  return (
+    <form className="mx-auto mt-16 max-w-sm panel space-y-4 p-6" onSubmit={submit}>
+      {isSignup ? <UserPlus className="h-8 w-8 text-primary" /> : <LogIn className="h-8 w-8 text-primary" />}
+      <h1 className="text-xl font-bold">{isSignup ? "Claim this site" : "Admin sign in"}</h1>
+      <p className="text-sm text-muted-foreground">
+        {isSignup
+          ? "You are the first person here — the account you create becomes the site's admin and owner. Sign-up closes once it exists."
+          : "The site already has an owner. Sign in with the admin account."}
+      </p>
+      <div className="space-y-2">
+        <Label htmlFor="email">Email</Label>
+        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@example.com" autoComplete="email" />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="password">Password</Label>
+        <Input id="password" type="password" value={pw} onChange={(e) => setPw(e.target.value)} placeholder={isSignup ? "At least 8 characters" : "Password"} autoComplete={isSignup ? "new-password" : "current-password"} />
+      </div>
+      {isSignup && (
+        <div className="space-y-2">
+          <Label htmlFor="confirm">Confirm password</Label>
+          <Input id="confirm" type="password" value={pw2} onChange={(e) => setPw2(e.target.value)} placeholder="Repeat password" autoComplete="new-password" />
+        </div>
+      )}
+      <Button type="submit" className="w-full" disabled={busy || !email || !pw || (isSignup && !pw2)}>
+        {busy && <Loader2 className="h-4 w-4 animate-spin" />}
+        {isSignup ? "Create admin account" : "Sign in"}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" className="w-full" onClick={onSwitch}>
+        {isSignup ? "I already have an account" : "The owner account doesn't exist yet"}
       </Button>
     </form>
   );
 }
 
-function SettingsForm({ token, onLogout }: { token: string; onLogout: () => void }) {
+function SettingsForm({ onSignOut, onExpired }: { onSignOut: () => void; onExpired: () => void }) {
   const current = useSettings();
   const qc = useQueryClient();
   const save = useServerFn(updateSettings);
@@ -106,7 +187,7 @@ function SettingsForm({ token, onLogout }: { token: string; onLogout: () => void
     <div className="mx-auto max-w-3xl px-3 pb-16 sm:px-4">
       <div className="mb-6 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <h1 className="text-2xl font-bold sm:text-3xl">Site settings</h1>
-        <Button variant="ghost" size="sm" onClick={onLogout}>
+        <Button variant="ghost" size="sm" onClick={onSignOut}>
           <LogOut className="h-4 w-4" /> Sign out
         </Button>
       </div>
@@ -175,13 +256,15 @@ function SettingsForm({ token, onLogout }: { token: string; onLogout: () => void
         disabled={busy}
         onClick={async () => {
           setBusy(true);
-          const r = await save({ data: { token, settings: s } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+          const r = await save({ data: { settings: s } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
           setBusy(false);
           if (r.ok) {
             toast.success("Settings saved");
             await qc.invalidateQueries({ queryKey: settingsQuery.queryKey });
-          } else toast.error(r.error);
-          if (!r.ok && r.error === "Session expired") onLogout();
+          } else {
+            toast.error(r.error);
+            if (/unauthorized|not authorized/i.test(r.error)) onExpired();
+          }
         }}
       >
         {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />} Save settings
