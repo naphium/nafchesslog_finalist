@@ -204,7 +204,6 @@ function AccountForm({
 function SettingsForm({ onSignOut, onExpired }: { onSignOut: () => void; onExpired: () => void }) {
   const current = useSettings();
   const qc = useQueryClient();
-  const save = useServerFn(updateSettings);
   const [s, setS] = useState<SiteSettings>(current);
   const [busy, setBusy] = useState(false);
   useEffect(() => setS(current), [current]);
@@ -286,14 +285,16 @@ function SettingsForm({ onSignOut, onExpired }: { onSignOut: () => void; onExpir
         disabled={busy}
         onClick={async () => {
           setBusy(true);
-          const r = await save({ data: { settings: s } }).catch((e: Error) => ({ ok: false as const, error: e.message }));
+          const { error } = await supabase
+            .from("site_settings")
+            .update({ ...s, updated_at: new Date().toISOString() })
+            .eq("id", 1);
           setBusy(false);
-          if (r.ok) {
+          if (!error) {
             toast.success("Settings saved");
             await qc.invalidateQueries({ queryKey: settingsQuery.queryKey });
           } else {
-            toast.error(r.error);
-            if (/unauthorized|not authorized/i.test(r.error)) onExpired();
+            toast.error(error.message);
           }
         }}
       >
@@ -314,6 +315,3 @@ function Row({ title, desc, children }: { title: string; desc: string; children:
     </div>
   );
 }
-
-}}
-
